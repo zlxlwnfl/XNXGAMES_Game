@@ -15,15 +15,18 @@ import (
 	"XNXGAMES_Game/internal/service"
 )
 
-func main() {
-	repository := repository.NewGameRepository(config.DB())
-	service := service.NewGameService(repository)
-	handler := handler.NewGameHandler(service)
+const SERVER_SHUTDOWN_TIMEOUT_SECOND = 30
 
-	router := router.SetupGameRouter(handler)
+func main() {
+	gameRepository := repository.NewGameRepository(config.DB())
+	gameService := service.NewGameService(gameRepository)
+	gameHandler := handler.NewGameHandler(gameService)
+
+	router := router.SetupRouter(gameHandler)
 
 	db, err := config.DB().DB()
 	if err != nil {
+		log.Fatalf("데이터베이스 연결 실패: %v", err)
 		return
 	}
 
@@ -34,16 +37,18 @@ func main() {
 		Handler: router,
 	}
 
-	go func() {
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("서버 작동 중: %v", err)
-		}
-	}()
+	go startServer(server)
 
-	listenServerShutDown(*server)
+	waitForShutdown(server)
 }
 
-func listenServerShutDown(server http.Server) {
+func startServer(server *http.Server) {
+	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		log.Printf("서버 작동 중: %v", err)
+	}
+}
+
+func waitForShutdown(server *http.Server) {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt)
 
@@ -51,7 +56,7 @@ func listenServerShutDown(server http.Server) {
 	log.Println("서버 종료 중...")
 
 	// graceful shutdown 설정
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), SERVER_SHUTDOWN_TIMEOUT_SECOND*time.Second)
 	defer cancel()
 
 	if err := server.Shutdown(ctx); err != nil {

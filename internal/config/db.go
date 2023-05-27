@@ -9,8 +9,12 @@ import (
 
 var db *gorm.DB
 
-func Init() {
-	var dbConfig = GetDBConfig()
+func InitDB() {
+	dbConfig, err := LoadDBConfig()
+	if err != nil {
+		panic(fmt.Sprintf("DB 설정 로드 실패: %v", err))
+	}
+
 	dbURL := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s",
 		dbConfig.DBUsername,
 		dbConfig.DBPassword,
@@ -19,7 +23,6 @@ func Init() {
 		dbConfig.DBName,
 	)
 
-	var err error
 	db, err = gorm.Open(mysql.Open(dbURL), &gorm.Config{})
 	if err != nil {
 		panic(fmt.Sprintf("DB 연결 실패: %v", err))
@@ -28,7 +31,7 @@ func Init() {
 
 func DB() *gorm.DB {
 	if db == nil {
-		Init()
+		InitDB()
 	}
 
 	return db

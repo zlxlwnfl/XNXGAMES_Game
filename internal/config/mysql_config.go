@@ -14,21 +14,24 @@ type DBConfig struct {
 	DBName     string
 }
 
-func GetDBConfig() *DBConfig {
-	viper.SetConfigName("DBConfig")
+// LoadDBConfig 함수는 DB 설정을 로드하여 DBConfig 구조체를 반환합니다.
+func LoadDBConfig() (*DBConfig, error) {
+	viper.SetConfigName("config")
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath(".")
 
-	err := viper.ReadInConfig()
-	if err != nil {
-		log.Fatalf("DB 설정 파일 읽기 실패: %v", err)
+	if err := viper.ReadInConfig(); err != nil {
+		return nil, err
 	}
 
-	return &DBConfig{
+	dbConfig := &DBConfig{
 		DBUsername: viper.GetString("db.username"),
 		DBPassword: viper.GetString("db.password"),
 		DBHost:     viper.GetString("db.host"),
 		DBPort:     viper.GetString("db.port"),
 		DBName:     viper.GetString("db.name"),
 	}
+	log.Printf("DB 설정 불러오기 완료")
+
+	return dbConfig, nil
 }
